@@ -6,6 +6,7 @@ import { useProducts } from "@/hooks/useProducts";
 import { useTransactions } from "@/hooks/useTransactions";
 import { Transaction, TransactionItem } from "@/lib/db";
 import toast from "react-hot-toast";
+import { subDays } from "date-fns";
 
 export default function LaporanPage() {
   const { products, loading: loadingProducts } = useProducts();
@@ -103,8 +104,71 @@ export default function LaporanPage() {
     }
   };
 
-  const settledTransactions = useMemo(() => transactions.filter(t => t.status !== "Hutang"), [transactions]);
-  const unpaidTransactions = useMemo(() => transactions.filter(t => t.status === "Hutang"), [transactions]);
+  const dummyTransactions = useMemo(() => {
+    if (loadingProducts || loadingTransactions) return [];
+    
+    const data: Transaction[] = [];
+    const now = new Date();
+    
+    // Generate data for the last 60 days
+    for (let i = 0; i < 60; i++) {
+      const date = subDays(now, i);
+      const numTransactions = Math.floor(((i * 7 + 3) % 5)) + 1; 
+      
+      for (let j = 0; j < numTransactions; j++) {
+        const items: TransactionItem[] = [];
+        const numItems = Math.floor(((i * 3 + j * 5) % 3)) + 1;
+        
+        let total = 0;
+        let totalModal = 0;
+        
+        for (let k = 0; k < numItems; k++) {
+          const productIdx = (i + j + k) % (products.length || 1);
+          const product = products.length > 0 
+            ? products[productIdx]
+            : { id: 999 + k, nama: "Produk Contoh " + (k + 1), hargaJual: 20000, modal: 15000 };
+          
+          const qty = Math.floor(((i + j + k) % 3)) + 1;
+          items.push({
+            id: product.id || 999 + k,
+            nama: product.nama,
+            quantity: qty,
+            hargaJual: product.hargaJual,
+            modal: product.modal
+          });
+          
+          total += product.hargaJual * qty;
+          totalModal += product.modal * qty;
+        }
+        
+        const timestamp = new Date(date);
+        timestamp.setHours(8 + (j % 14), (j * 20) % 60, 0);
+
+        // Make some transactions "Hutang" (approx 1 in 15)
+        const isHutang = (i + j) % 15 === 0;
+
+        data.push({
+          id: 20000 + i * 10 + j,
+          timestamp: timestamp.toISOString(),
+          items,
+          total,
+          totalModal,
+          paymentMethod: isHutang ? "Hutang" : "Tunai",
+          status: isHutang ? "Hutang" : "Lunas"
+        });
+      }
+    }
+    return data;
+  }, [products, loadingProducts, loadingTransactions]);
+
+  const allTransactions = useMemo(() => {
+    return [...transactions, ...dummyTransactions].sort((a, b) => 
+      new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+    );
+  }, [transactions, dummyTransactions]);
+
+  const settledTransactions = useMemo(() => allTransactions.filter(t => t.status !== "Hutang"), [allTransactions]);
+  const unpaidTransactions = useMemo(() => allTransactions.filter(t => t.status === "Hutang"), [allTransactions]);
 
   const totalPenjualan = useMemo(() => {
     const omset = settledTransactions.reduce((acc, t) => acc + (Number(t.total) || 0), 0);
@@ -116,7 +180,7 @@ export default function LaporanPage() {
     return formatNumberAbbreviated(piutang);
   }, [unpaidTransactions]);
 
-  const riwayatTransaksi = useMemo(() => formatNumberAbbreviated(transactions.length, false), [transactions, formatNumberAbbreviated]);
+  const riwayatTransaksi = useMemo(() => formatNumberAbbreviated(allTransactions.length, false), [allTransactions, formatNumberAbbreviated]);
 
   const totalStok = useMemo(() => {
     const total = products.reduce((acc, p) => acc + (Number(p.stok) || 0), 0);
@@ -219,14 +283,14 @@ export default function LaporanPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-50">
-                {transactions.length === 0 ? (
+                {allTransactions.length === 0 ? (
                   <tr>
                     <td colSpan={6} className="px-6 py-12 text-center text-zinc-400 italic">
                       Belum ada transaksi.
                     </td>
                   </tr>
                 ) : (
-                  transactions.map((t) => (
+                  allTransactions.map((t) => (
                     <tr key={t.id} className="hover:bg-zinc-50/80 transition-colors group">
                       <td className="px-6 py-4 whitespace-nowrap min-w-[200px]">
                         <p className="font-bold text-zinc-900 group-hover:text-primary transition-colors">Transaksi #{t.id}</p>
@@ -299,7 +363,7 @@ export default function LaporanPage() {
 
           {/* Mobile Card List */}
           <div className="md:hidden divide-y divide-zinc-100">
-            {transactions.length === 0 ? (
+            {allTransactions.length === 0 ? (
               <div className="py-20 flex flex-col items-center justify-center text-zinc-300 gap-4">
                 <div className="w-16 h-16 bg-zinc-50 rounded-full flex items-center justify-center">
                   <i className="fa-solid fa-receipt text-3xl"></i>
@@ -307,7 +371,7 @@ export default function LaporanPage() {
                 <p className="font-bold text-xs uppercase tracking-widest text-zinc-400 italic">Belum ada transaksi</p>
               </div>
             ) : (
-              transactions.map((t) => (
+              allTransactions.map((t) => (
                 <div key={t.id} className="p-5 space-y-4 active:bg-zinc-50 transition-colors">
                   <div className="flex items-start justify-between">
                     <div>

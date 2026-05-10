@@ -37,9 +37,9 @@ export default function RegisterPage() {
 
     setIsSubmitting(true);
     
-    // Calculate expired_at (1 month from now)
+    // Calculate expired_at (1 year from now)
     const expiredAt = new Date();
-    expiredAt.setMonth(expiredAt.getMonth() + 1);
+    expiredAt.setFullYear(expiredAt.getFullYear() + 1);
 
     const success = await register({
       nama,

@@ -4,6 +4,7 @@ import React, { useMemo, useState } from "react";
 import DashboardLayout from "@/components/DashboardLayout";
 import { useProducts } from "@/hooks/useProducts";
 import { useTransactions } from "@/hooks/useTransactions";
+import { Transaction, TransactionItem } from "@/lib/types";
 import RevenueChart from "@/components/RevenueChart";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
@@ -25,15 +26,73 @@ export default function Home() {
   const [startDate, setStartDate] = useState<Date>(startOfMonth(new Date()));
   const [endDate, setEndDate] = useState<Date>(endOfDay(new Date()));
 
+  const dummyTransactions = useMemo(() => {
+    if (loadingProducts || loadingTransactions) return [];
+    
+    const data: Transaction[] = [];
+    const now = new Date();
+    
+    // Generate data for the last 30 days
+    for (let i = 0; i < 30; i++) {
+      const date = subDays(now, i);
+      // Random number of transactions per day (2 to 8)
+      const numTransactions = Math.floor(((i * 7 + 3) % 7)) + 2; 
+      
+      for (let j = 0; j < numTransactions; j++) {
+        const items: TransactionItem[] = [];
+        // Random items (1 to 4)
+        const numItems = Math.floor(((i * 3 + j * 5) % 4)) + 1;
+        
+        let total = 0;
+        let totalModal = 0;
+        
+        for (let k = 0; k < numItems; k++) {
+          const productIdx = (i + j + k) % (products.length || 1);
+          const product = products.length > 0 
+            ? products[productIdx]
+            : { id: 999 + k, nama: "Produk Contoh " + (k + 1), hargaJual: 25000, modal: 18000 };
+          
+          const qty = Math.floor(((i + j + k) % 3)) + 1;
+          items.push({
+            id: product.id || 999 + k,
+            nama: product.nama,
+            quantity: qty,
+            hargaJual: product.hargaJual,
+            modal: product.modal
+          });
+          
+          total += product.hargaJual * qty;
+          totalModal += product.modal * qty;
+        }
+        
+        // Add some variety to timestamps within the day
+        const timestamp = new Date(date);
+        timestamp.setHours(9 + (j % 12), (j * 15) % 60, 0);
+
+        data.push({
+          id: 10000 + i * 10 + j,
+          timestamp: timestamp.toISOString(),
+          items,
+          total,
+          totalModal,
+          paymentMethod: "Tunai",
+          status: "Lunas"
+        });
+      }
+    }
+    return data;
+  }, [products, loadingProducts, loadingTransactions]);
+
   const filteredTransactions = useMemo(() => {
-    return transactions.filter((t) => {
+    const allTransactions = [...transactions, ...dummyTransactions];
+    return allTransactions.filter((t) => {
       const tDate = new Date(t.timestamp);
       return isWithinInterval(tDate, { 
         start: startOfDay(startDate), 
         end: endOfDay(endDate) 
       });
     });
-  }, [transactions, startDate, endDate]);
+  }, [transactions, dummyTransactions, startDate, endDate]);
 
   const formatNumberAbbreviated = (value: number, isCurrency = true) => {
     let formatted = "";
