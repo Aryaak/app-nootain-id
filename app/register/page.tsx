@@ -106,7 +106,6 @@ export default function RegisterPage() {
                 >
                   <option value="Toko Kelontong / Sembako">Toko Kelontong / Sembako</option>
                   <option value="Makanan & Minuman (FnB)">Makanan & Minuman (FnB)</option>
-                  <option value="Toko Elektronik">Toko Elektronik</option>
                   <option value="Lainnya">Lainnya</option>
                 </select>
               </div>

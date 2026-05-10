@@ -104,68 +104,11 @@ export default function LaporanPage() {
     }
   };
 
-  const dummyTransactions = useMemo(() => {
-    if (loadingProducts || loadingTransactions) return [];
-    
-    const data: Transaction[] = [];
-    const now = new Date();
-    
-    // Generate data for the last 60 days
-    for (let i = 0; i < 60; i++) {
-      const date = subDays(now, i);
-      const numTransactions = Math.floor(((i * 7 + 3) % 5)) + 1; 
-      
-      for (let j = 0; j < numTransactions; j++) {
-        const items: TransactionItem[] = [];
-        const numItems = Math.floor(((i * 3 + j * 5) % 3)) + 1;
-        
-        let total = 0;
-        let totalModal = 0;
-        
-        for (let k = 0; k < numItems; k++) {
-          const productIdx = (i + j + k) % (products.length || 1);
-          const product = products.length > 0 
-            ? products[productIdx]
-            : { id: 999 + k, nama: "Produk Contoh " + (k + 1), hargaJual: 20000, modal: 15000 };
-          
-          const qty = Math.floor(((i + j + k) % 3)) + 1;
-          items.push({
-            id: product.id || 999 + k,
-            nama: product.nama,
-            quantity: qty,
-            hargaJual: product.hargaJual,
-            modal: product.modal
-          });
-          
-          total += product.hargaJual * qty;
-          totalModal += product.modal * qty;
-        }
-        
-        const timestamp = new Date(date);
-        timestamp.setHours(8 + (j % 14), (j * 20) % 60, 0);
-
-        // Make some transactions "Hutang" (approx 1 in 15)
-        const isHutang = (i + j) % 15 === 0;
-
-        data.push({
-          id: 20000 + i * 10 + j,
-          timestamp: timestamp.toISOString(),
-          items,
-          total,
-          totalModal,
-          paymentMethod: isHutang ? "Hutang" : "Tunai",
-          status: isHutang ? "Hutang" : "Lunas"
-        });
-      }
-    }
-    return data;
-  }, [products, loadingProducts, loadingTransactions]);
-
   const allTransactions = useMemo(() => {
-    return [...transactions, ...dummyTransactions].sort((a, b) => 
+    return [...transactions].sort((a, b) => 
       new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
     );
-  }, [transactions, dummyTransactions]);
+  }, [transactions]);
 
   const settledTransactions = useMemo(() => allTransactions.filter(t => t.status !== "Hutang"), [allTransactions]);
   const unpaidTransactions = useMemo(() => allTransactions.filter(t => t.status === "Hutang"), [allTransactions]);
